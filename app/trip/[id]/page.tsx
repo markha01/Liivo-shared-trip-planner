@@ -78,6 +78,18 @@ export default function TripPage() {
   const [newActivity, setNewActivity] = useState({ name: '', description: '', category: 'Sightseeing' })
   const [addingActivity, setAddingActivity] = useState(false)
 
+  // Edit place
+  const [editingPlace, setEditingPlace] = useState<Destination | null>(null)
+  const [editPlaceData, setEditPlaceData] = useState({ name: '', country: '', emoji: '🗺️', notes: '' })
+  const [savingPlace, setSavingPlace] = useState(false)
+  const [deletingPlace, setDeletingPlace] = useState(false)
+
+  // Edit activity
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null)
+  const [editActivityData, setEditActivityData] = useState({ name: '', description: '', category: 'Sightseeing' })
+  const [savingActivity, setSavingActivity] = useState(false)
+  const [deletingActivity, setDeletingActivity] = useState(false)
+
   const fetchTrip = useCallback(async () => {
     try {
       const res = await fetch(`/api/trips/${tripId}`, {
@@ -167,6 +179,120 @@ export default function TripPage() {
             }
           : t
       )
+    }
+  }
+
+  function startEditPlace(dest: Destination, e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditingPlace(dest)
+    setEditPlaceData({ name: dest.name, country: dest.country ?? '', emoji: dest.emoji, notes: dest.notes ?? '' })
+  }
+
+  async function savePlace() {
+    if (!editingPlace || !editPlaceData.name.trim()) return
+    setSavingPlace(true)
+    try {
+      const res = await fetch(`/api/destinations/${editingPlace.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editPlaceData),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setTrip((t) =>
+          t
+            ? {
+                ...t,
+                destinations: t.destinations.map((d) =>
+                  d.id === editingPlace.id ? { ...d, ...updated } : d
+                ),
+              }
+            : t
+        )
+        setEditingPlace(null)
+      }
+    } finally {
+      setSavingPlace(false)
+    }
+  }
+
+  async function deletePlace() {
+    if (!editingPlace) return
+    setDeletingPlace(true)
+    try {
+      const res = await fetch(`/api/destinations/${editingPlace.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setTrip((t) =>
+          t ? { ...t, destinations: t.destinations.filter((d) => d.id !== editingPlace.id) } : t
+        )
+        setEditingPlace(null)
+      }
+    } finally {
+      setDeletingPlace(false)
+    }
+  }
+
+  function startEditActivity(activity: Activity) {
+    setEditingActivity(activity)
+    setEditActivityData({
+      name: activity.name,
+      description: activity.description ?? '',
+      category: activity.category ?? 'Sightseeing',
+    })
+  }
+
+  async function saveActivity() {
+    if (!editingActivity || !editActivityData.name.trim()) return
+    setSavingActivity(true)
+    try {
+      const res = await fetch(`/api/activities/${editingActivity.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editActivityData),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setTrip((t) =>
+          t
+            ? {
+                ...t,
+                destinations: t.destinations.map((d) => ({
+                  ...d,
+                  activities: d.activities.map((a) =>
+                    a.id === editingActivity.id ? { ...a, ...updated } : a
+                  ),
+                })),
+              }
+            : t
+        )
+        setEditingActivity(null)
+      }
+    } finally {
+      setSavingActivity(false)
+    }
+  }
+
+  async function deleteActivity() {
+    if (!editingActivity) return
+    setDeletingActivity(true)
+    try {
+      const res = await fetch(`/api/activities/${editingActivity.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setTrip((t) =>
+          t
+            ? {
+                ...t,
+                destinations: t.destinations.map((d) => ({
+                  ...d,
+                  activities: d.activities.filter((a) => a.id !== editingActivity.id),
+                })),
+              }
+            : t
+        )
+        setEditingActivity(null)
+      }
+    } finally {
+      setDeletingActivity(false)
     }
   }
 
@@ -304,14 +430,25 @@ export default function TripPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {trip.destinations.map((dest, i) => (
-                  <button
+                  <div
                     key={dest.id}
                     onClick={() => setTab('activities')}
-                    className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 text-left transition"
+                    className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 text-left transition cursor-pointer"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <span className="text-4xl">{dest.emoji}</span>
-                      <span className="text-slate-600 text-xs font-mono">#{i + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => startEditPlace(dest, e)}
+                          className="text-slate-600 hover:text-slate-300 transition p-1 rounded-lg hover:bg-slate-600"
+                          title="Edit place"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <span className="text-slate-600 text-xs font-mono">#{i + 1}</span>
+                      </div>
                     </div>
                     <h3 className="text-white font-semibold text-lg leading-tight">{dest.name}</h3>
                     {dest.country && <p className="text-slate-400 text-sm mt-0.5">{dest.country}</p>}
@@ -325,7 +462,7 @@ export default function TripPage() {
                         {dest.activities.length === 1 ? 'activity' : 'activities'} suggested
                       </span>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -405,8 +542,17 @@ export default function TripPage() {
                                 )}
                               </div>
 
-                              {/* Vote buttons */}
-                              <div className="flex flex-col gap-1.5 flex-shrink-0">
+                              {/* Edit + Vote buttons */}
+                              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                <button
+                                  onClick={() => startEditActivity(activity)}
+                                  className="text-slate-600 hover:text-slate-300 transition p-1 rounded-lg hover:bg-slate-700"
+                                  title="Edit suggestion"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                  </svg>
+                                </button>
                                 <button
                                   onClick={() => vote(activity.id, 'up')}
                                   className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium transition ${
@@ -704,6 +850,144 @@ export default function TripPage() {
                 {addingActivity ? 'Adding…' : 'Add suggestion'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── Edit Place Modal ── */}
+      {editingPlace && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-white font-semibold text-lg mb-5">Edit place</h3>
+
+            <div className="mb-4">
+              <label className="text-slate-400 text-sm block mb-2">Pick an icon</label>
+              <div className="flex gap-2 flex-wrap">
+                {['🗺️', '🏛️', '🌊', '🏖️', '⛰️', '🌆', '🌿', '🏜️', '🌅', '🏔️', '🗼', '🏝️'].map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => setEditPlaceData((p) => ({ ...p, emoji: e }))}
+                    className={`w-10 h-10 rounded-lg text-xl transition ${
+                      editPlaceData.emoji === e ? 'bg-indigo-600 ring-2 ring-indigo-400' : 'bg-slate-700 hover:bg-slate-600'
+                    }`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              <input
+                type="text"
+                placeholder="Place name"
+                value={editPlaceData.name}
+                onChange={(e) => setEditPlaceData((p) => ({ ...p, name: e.target.value }))}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
+                autoFocus
+              />
+              <input
+                type="text"
+                placeholder="Country (optional)"
+                value={editPlaceData.country}
+                onChange={(e) => setEditPlaceData((p) => ({ ...p, country: e.target.value }))}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
+              />
+              <input
+                type="text"
+                placeholder="Notes (optional)"
+                value={editPlaceData.notes}
+                onChange={(e) => setEditPlaceData((p) => ({ ...p, notes: e.target.value }))}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
+              />
+            </div>
+
+            <div className="flex gap-3 mb-3">
+              <button
+                onClick={() => setEditingPlace(null)}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={savePlace}
+                disabled={!editPlaceData.name.trim() || savingPlace}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl font-medium transition"
+              >
+                {savingPlace ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+
+            <button
+              onClick={deletePlace}
+              disabled={deletingPlace}
+              className="w-full bg-red-900/40 hover:bg-red-900/70 border border-red-800/50 text-red-400 hover:text-red-300 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-50"
+            >
+              {deletingPlace ? 'Deleting…' : 'Delete this place'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Activity Modal ── */}
+      {editingActivity && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-white font-semibold text-lg mb-5">Edit suggestion</h3>
+
+            <div className="space-y-3 mb-5">
+              <input
+                type="text"
+                placeholder="Activity name"
+                value={editActivityData.name}
+                onChange={(e) => setEditActivityData((p) => ({ ...p, name: e.target.value }))}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
+                autoFocus
+              />
+              <textarea
+                placeholder="Details (optional)"
+                value={editActivityData.description}
+                onChange={(e) => setEditActivityData((p) => ({ ...p, description: e.target.value }))}
+                rows={3}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition resize-none"
+              />
+              <select
+                value={editActivityData.category}
+                onChange={(e) => setEditActivityData((p) => ({ ...p, category: e.target.value }))}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition"
+              >
+                {['Sightseeing', 'Food & Drinks', 'Adventure', 'Culture', 'Relaxation', 'Shopping', 'Nightlife', 'Nature'].map(
+                  (c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            <div className="flex gap-3 mb-3">
+              <button
+                onClick={() => setEditingActivity(null)}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveActivity}
+                disabled={!editActivityData.name.trim() || savingActivity}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl font-medium transition"
+              >
+                {savingActivity ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+
+            <button
+              onClick={deleteActivity}
+              disabled={deletingActivity}
+              className="w-full bg-red-900/40 hover:bg-red-900/70 border border-red-800/50 text-red-400 hover:text-red-300 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-50"
+            >
+              {deletingActivity ? 'Deleting…' : 'Delete this suggestion'}
+            </button>
           </div>
         </div>
       )}
