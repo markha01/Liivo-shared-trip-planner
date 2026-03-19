@@ -67,6 +67,8 @@ export default function TripPage() {
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('places')
   const [copied, setCopied] = useState(false)
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   // Add place form
   const [showAddPlace, setShowAddPlace] = useState(false)
@@ -302,6 +304,12 @@ export default function TripPage() {
     setTimeout(() => setCopied(false), 2500)
   }
 
+  function copyLinkFromModal() {
+    navigator.clipboard.writeText(window.location.href)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2500)
+  }
+
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -341,11 +349,14 @@ export default function TripPage() {
       <header className="bg-slate-900/95 backdrop-blur border-b border-slate-800 sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <a href="/" className="text-slate-400 hover:text-white transition flex-shrink-0 p-1">
+            <button
+              onClick={() => setShowLeaveModal(true)}
+              className="text-slate-400 hover:text-white transition flex-shrink-0 p-1"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-            </a>
+            </button>
             <div className="min-w-0">
               <h1 className="text-white font-bold truncate leading-tight">{trip.name}</h1>
               {trip.description && (
@@ -924,6 +935,48 @@ export default function TripPage() {
             >
               {deletingPlace ? 'Deleting…' : 'Delete this place'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Leave Confirmation Modal ── */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+            <div className="text-3xl mb-3">⚠️</div>
+            <h3 className="text-white font-semibold text-lg mb-2">Save your link before you go!</h3>
+            <p className="text-slate-400 text-sm mb-5 leading-relaxed">
+              This trip only exists at this URL. If you leave without saving the link, you won&apos;t be able to find it again.
+            </p>
+
+            <div className="bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2.5 flex items-center gap-2 mb-5">
+              <span className="text-slate-400 text-xs truncate flex-1 font-mono select-all">
+                {typeof window !== 'undefined' ? window.location.href : ''}
+              </span>
+              <button
+                onClick={copyLinkFromModal}
+                className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition"
+              >
+                {linkCopied ? '✓ Copied!' : 'Copy link'}
+              </button>
+            </div>
+
+            <p className="text-slate-400 text-sm mb-4">Are you sure you want to leave?</p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLeaveModal(false)}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-medium transition"
+              >
+                No, stay
+              </button>
+              <a
+                href="/"
+                className="flex-1 bg-red-900/50 hover:bg-red-900/80 border border-red-800/50 text-red-300 hover:text-red-200 py-3 rounded-xl font-medium transition text-center"
+              >
+                Yes, leave
+              </a>
+            </div>
           </div>
         </div>
       )}
