@@ -3,8 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --background: #0f172a;
+  --background: #0D0D1A;
   --foreground: #f1f5f9;
+  --primary: #A878F8;
+  --accent: #2192D9;
+  --lime: #BEE65F;
+  --powder: #B2DBF7;
+  --dark-surface: #141428;
+  --dark-card: #1C1C35;
+  --dark-border: #2A2A4A;
 }
 
 * {
@@ -22,12 +29,51 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: #141428;
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #2A2A4A;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #A878F8;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1C1C35 25%, #2A2A4A 50%, #1C1C35 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }

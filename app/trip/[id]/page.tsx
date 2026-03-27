@@ -2,6 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  MapPin, Sparkles, ClipboardList, Share2, ArrowLeft,
+  ThumbsUp, ThumbsDown, Pencil, Plus, Star, AlertCircle, X, Check,
+} from 'lucide-react'
 
 type Activity = {
   id: string
@@ -32,20 +37,21 @@ type Trip = {
 }
 
 type Tab = 'places' | 'activities' | 'plan'
+type Toast = { id: string; message: string; type: 'success' | 'error' | 'info' }
 
 const categoryColors: Record<string, string> = {
-  'Food & Drinks': 'bg-orange-900/50 text-orange-300',
-  Sightseeing: 'bg-blue-900/50 text-blue-300',
-  Adventure: 'bg-green-900/50 text-green-300',
-  Shopping: 'bg-pink-900/50 text-pink-300',
-  Relaxation: 'bg-purple-900/50 text-purple-300',
-  Nightlife: 'bg-violet-900/50 text-violet-300',
-  Culture: 'bg-amber-900/50 text-amber-300',
-  Nature: 'bg-teal-900/50 text-teal-300',
+  'Food & Drinks': 'bg-orange-500/15 text-orange-300 border-orange-500/20',
+  Sightseeing: 'bg-accent/15 text-accent border-accent/20',
+  Adventure: 'bg-lime/15 text-lime border-lime/20',
+  Shopping: 'bg-pink-500/15 text-pink-300 border-pink-500/20',
+  Relaxation: 'bg-primary/15 text-primary border-primary/20',
+  Nightlife: 'bg-violet-500/15 text-violet-300 border-violet-500/20',
+  Culture: 'bg-amber-500/15 text-amber-300 border-amber-500/20',
+  Nature: 'bg-teal-500/15 text-teal-300 border-teal-500/20',
 }
 
 function categoryColor(cat: string | null) {
-  return categoryColors[cat ?? ''] ?? 'bg-slate-700/60 text-slate-300'
+  return categoryColors[cat ?? ''] ?? 'bg-dark-border text-powder border-dark-border'
 }
 
 function getVoterId(): string {
@@ -58,6 +64,9 @@ function getVoterId(): string {
   return id
 }
 
+const DEST_EMOJIS = ['🗺️', '🏛️', '🌊', '🏖️', '⛰️', '🌆', '🌿', '🏜️', '🌅', '🏔️', '🗼', '🏝️']
+const CATEGORIES = ['Sightseeing', 'Food & Drinks', 'Adventure', 'Culture', 'Relaxation', 'Shopping', 'Nightlife', 'Nature']
+
 export default function TripPage() {
   const params = useParams()
   const tripId = params.id as string
@@ -69,6 +78,7 @@ export default function TripPage() {
   const [copied, setCopied] = useState(false)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [toasts, setToasts] = useState<Toast[]>([])
 
   // Add place form
   const [showAddPlace, setShowAddPlace] = useState(false)
@@ -91,6 +101,12 @@ export default function TripPage() {
   const [editActivityData, setEditActivityData] = useState({ name: '', description: '', category: 'Sightseeing' })
   const [savingActivity, setSavingActivity] = useState(false)
   const [deletingActivity, setDeletingActivity] = useState(false)
+
+  function addToast(message: string, type: Toast['type'] = 'info') {
+    const id = crypto.randomUUID()
+    setToasts((prev) => [...prev, { id, message, type }])
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000)
+  }
 
   const fetchTrip = useCallback(async () => {
     try {
@@ -127,6 +143,9 @@ export default function TripPage() {
         setTrip((t) => t ? { ...t, destinations: [...t.destinations, dest] } : t)
         setNewPlace({ name: '', country: '', emoji: '🗺️', notes: '' })
         setShowAddPlace(false)
+        addToast(`${dest.name} added!`, 'success')
+      } else {
+        addToast('Failed to add place', 'error')
       }
     } finally {
       setAddingPlace(false)
@@ -145,17 +164,18 @@ export default function TripPage() {
       if (res.ok) {
         const activity = await res.json()
         setTrip((t) =>
-          t
-            ? {
-                ...t,
-                destinations: t.destinations.map((d) =>
-                  d.id === addActivityFor ? { ...d, activities: [...d.activities, activity] } : d
-                ),
-              }
-            : t
+          t ? {
+            ...t,
+            destinations: t.destinations.map((d) =>
+              d.id === addActivityFor ? { ...d, activities: [...d.activities, activity] } : d
+            ),
+          } : t
         )
         setNewActivity({ name: '', description: '', category: 'Sightseeing' })
         setAddActivityFor(null)
+        addToast('Activity added!', 'success')
+      } else {
+        addToast('Failed to add activity', 'error')
       }
     } finally {
       setAddingActivity(false)
@@ -163,6 +183,32 @@ export default function TripPage() {
   }
 
   async function vote(activityId: string, voteType: 'up' | 'down') {
+    // Optimistic update
+    setTrip((t) =>
+      t ? {
+        ...t,
+        destinations: t.destinations.map((d) => ({
+          ...d,
+          activities: d.activities.map((a) => {
+            if (a.id !== activityId) return a
+            const wasUp = a.user_vote === 'up'
+            const wasDown = a.user_vote === 'down'
+            const toggling = a.user_vote === voteType
+            return {
+              ...a,
+              upvotes: voteType === 'up'
+                ? toggling ? a.upvotes - 1 : a.upvotes + 1 + (wasDown ? 0 : 0)
+                : wasUp ? a.upvotes - 1 : a.upvotes,
+              downvotes: voteType === 'down'
+                ? toggling ? a.downvotes - 1 : a.downvotes + 1
+                : wasDown ? a.downvotes - 1 : a.downvotes,
+              user_vote: toggling ? null : voteType,
+            }
+          }),
+        })),
+      } : t
+    )
+
     const res = await fetch(`/api/activities/${activityId}/vote`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-voter-id': getVoterId() },
@@ -171,15 +217,13 @@ export default function TripPage() {
     if (res.ok) {
       const counts = await res.json()
       setTrip((t) =>
-        t
-          ? {
-              ...t,
-              destinations: t.destinations.map((d) => ({
-                ...d,
-                activities: d.activities.map((a) => (a.id === activityId ? { ...a, ...counts } : a)),
-              })),
-            }
-          : t
+        t ? {
+          ...t,
+          destinations: t.destinations.map((d) => ({
+            ...d,
+            activities: d.activities.map((a) => (a.id === activityId ? { ...a, ...counts } : a)),
+          })),
+        } : t
       )
     }
   }
@@ -202,16 +246,15 @@ export default function TripPage() {
       if (res.ok) {
         const updated = await res.json()
         setTrip((t) =>
-          t
-            ? {
-                ...t,
-                destinations: t.destinations.map((d) =>
-                  d.id === editingPlace.id ? { ...d, ...updated } : d
-                ),
-              }
-            : t
+          t ? {
+            ...t,
+            destinations: t.destinations.map((d) =>
+              d.id === editingPlace.id ? { ...d, ...updated } : d
+            ),
+          } : t
         )
         setEditingPlace(null)
+        addToast('Place updated!', 'success')
       }
     } finally {
       setSavingPlace(false)
@@ -228,6 +271,7 @@ export default function TripPage() {
           t ? { ...t, destinations: t.destinations.filter((d) => d.id !== editingPlace.id) } : t
         )
         setEditingPlace(null)
+        addToast('Place deleted', 'info')
       }
     } finally {
       setDeletingPlace(false)
@@ -255,19 +299,18 @@ export default function TripPage() {
       if (res.ok) {
         const updated = await res.json()
         setTrip((t) =>
-          t
-            ? {
-                ...t,
-                destinations: t.destinations.map((d) => ({
-                  ...d,
-                  activities: d.activities.map((a) =>
-                    a.id === editingActivity.id ? { ...a, ...updated } : a
-                  ),
-                })),
-              }
-            : t
+          t ? {
+            ...t,
+            destinations: t.destinations.map((d) => ({
+              ...d,
+              activities: d.activities.map((a) =>
+                a.id === editingActivity.id ? { ...a, ...updated } : a
+              ),
+            })),
+          } : t
         )
         setEditingActivity(null)
+        addToast('Activity updated!', 'success')
       }
     } finally {
       setSavingActivity(false)
@@ -281,17 +324,16 @@ export default function TripPage() {
       const res = await fetch(`/api/activities/${editingActivity.id}`, { method: 'DELETE' })
       if (res.ok) {
         setTrip((t) =>
-          t
-            ? {
-                ...t,
-                destinations: t.destinations.map((d) => ({
-                  ...d,
-                  activities: d.activities.filter((a) => a.id !== editingActivity.id),
-                })),
-              }
-            : t
+          t ? {
+            ...t,
+            destinations: t.destinations.map((d) => ({
+              ...d,
+              activities: d.activities.filter((a) => a.id !== editingActivity.id),
+            })),
+          } : t
         )
         setEditingActivity(null)
+        addToast('Activity deleted', 'info')
       }
     } finally {
       setDeletingActivity(false)
@@ -301,6 +343,7 @@ export default function TripPage() {
   function copyLink() {
     navigator.clipboard.writeText(window.location.href)
     setCopied(true)
+    addToast('Link copied!', 'success')
     setTimeout(() => setCopied(false), 2500)
   }
 
@@ -310,13 +353,15 @@ export default function TripPage() {
     setTimeout(() => setLinkCopied(false), 2500)
   }
 
-  // ── Loading ──────────────────────────────────────────────────────────────
+  // ── Loading skeleton ───────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-5xl mb-4 animate-bounce">✈️</div>
-          <p className="text-slate-400">Loading your trip…</p>
+      <div className="min-h-screen bg-dark-bg">
+        <div className="h-14 bg-dark-surface border-b border-dark-border" />
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="skeleton h-24 rounded-2xl" />
+          ))}
         </div>
       </div>
     )
@@ -324,12 +369,14 @@ export default function TripPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="text-5xl mb-4">😕</div>
+          <div className="w-16 h-16 bg-dark-card border border-dark-border rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-400" />
+          </div>
           <p className="text-white font-semibold mb-2">Something went wrong</p>
-          <p className="text-slate-400 mb-6">{error}</p>
-          <a href="/" className="text-indigo-400 hover:text-indigo-300 transition">
+          <p className="text-powder/60 mb-6 text-sm">{error}</p>
+          <a href="/" className="text-primary hover:text-primary/80 transition text-sm">
             ← Go back home
           </a>
         </div>
@@ -342,61 +389,93 @@ export default function TripPage() {
   const allActivities = trip.destinations.flatMap((d) => d.activities)
   const totalVotes = allActivities.reduce((acc, a) => acc + a.upvotes + a.downvotes, 0)
 
+  const tabs: { key: Tab; label: string; icon: React.ReactNode; badge: number | null }[] = [
+    { key: 'places', label: 'Places', icon: <MapPin className="w-4 h-4" />, badge: trip.destinations.length },
+    { key: 'activities', label: 'Things to do', icon: <Sparkles className="w-4 h-4" />, badge: allActivities.length },
+    { key: 'plan', label: 'Final plan', icon: <ClipboardList className="w-4 h-4" />, badge: null },
+  ]
+
   // ── Main layout ───────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-dark-bg">
+      {/* Toast notifications */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 60, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 60, scale: 0.9 }}
+              className={`flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-xl text-sm font-medium border ${
+                toast.type === 'success'
+                  ? 'bg-lime/15 border-lime/30 text-lime'
+                  : toast.type === 'error'
+                  ? 'bg-red-900/30 border-red-700/50 text-red-300'
+                  : 'bg-dark-card border-dark-border text-powder'
+              }`}
+            >
+              {toast.type === 'success' && <Check className="w-4 h-4" />}
+              {toast.type === 'error' && <AlertCircle className="w-4 h-4" />}
+              {toast.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
       {/* Sticky header */}
-      <header className="bg-slate-900/95 backdrop-blur border-b border-slate-800 sticky top-0 z-20">
+      <header className="bg-dark-surface/95 backdrop-blur border-b border-dark-border sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={() => setShowLeaveModal(true)}
-              className="text-slate-400 hover:text-white transition flex-shrink-0 p-1"
+              className="text-powder/40 hover:text-white transition flex-shrink-0 p-1"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="min-w-0">
               <h1 className="text-white font-bold truncate leading-tight">{trip.name}</h1>
               {trip.description && (
-                <p className="text-slate-400 text-xs truncate hidden sm:block">{trip.description}</p>
+                <p className="text-powder/40 text-xs truncate hidden sm:block">{trip.description}</p>
               )}
             </div>
           </div>
           <button
             onClick={copyLink}
-            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0"
+            className="flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0"
           >
-            <span>{copied ? '✓' : '🔗'}</span>
+            {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
             <span className="hidden sm:inline">{copied ? 'Copied!' : 'Share'}</span>
           </button>
         </div>
 
-        {/* Tabs */}
+        {/* Tab switcher */}
         <div className="max-w-3xl mx-auto px-4">
-          <div className="flex">
-            {(
-              [
-                { key: 'places', label: '📍 Places', badge: trip.destinations.length },
-                { key: 'activities', label: '✨ Things to do', badge: allActivities.length },
-                { key: 'plan', label: '📋 Final plan', badge: null },
-              ] as const
-            ).map((t) => (
+          <div className="flex relative">
+            {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition -mb-px ${
-                  tab === t.key
-                    ? 'border-indigo-500 text-white'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium transition -mb-px ${
+                  tab === t.key ? 'text-white' : 'text-powder/40 hover:text-powder/80'
                 }`}
               >
-                {t.label}
+                {t.icon}
+                <span className="hidden sm:inline">{t.label}</span>
                 {t.badge !== null && t.badge > 0 && (
-                  <span className="ml-1.5 bg-slate-700 text-slate-300 text-xs px-1.5 py-0.5 rounded-full">
+                  <span
+                    className={`text-xs px-1.5 py-0.5 rounded-full ${
+                      tab === t.key ? 'bg-primary/30 text-primary' : 'bg-dark-card text-powder/40'
+                    }`}
+                  >
                     {t.badge}
                   </span>
+                )}
+                {tab === t.key && (
+                  <motion.div
+                    layoutId="tab-underline"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
+                  />
                 )}
               </button>
             ))}
@@ -411,70 +490,77 @@ export default function TripPage() {
         {tab === 'places' && (
           <div>
             <div className="flex items-center justify-between mb-5">
-              <p className="text-slate-400 text-sm">
+              <p className="text-powder/50 text-sm">
                 {trip.destinations.length === 0
                   ? 'No places added yet'
-                  : `${trip.destinations.length} place${trip.destinations.length !== 1 ? 's' : ''} on this trip`}
+                  : `${trip.destinations.length} place${trip.destinations.length !== 1 ? 's' : ''}`}
               </p>
               <button
                 onClick={() => setShowAddPlace(true)}
-                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+                className="flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
               >
-                + Add a place
+                <Plus className="w-4 h-4" />
+                Add a place
               </button>
             </div>
 
             {trip.destinations.length === 0 ? (
               <div className="text-center py-20">
-                <div className="text-6xl mb-5">🗺️</div>
+                <div className="w-16 h-16 bg-dark-card border border-dark-border rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <MapPin className="w-8 h-8 text-primary" />
+                </div>
                 <p className="text-white font-semibold text-lg mb-2">Where are you headed?</p>
-                <p className="text-slate-400 mb-8 max-w-xs mx-auto">
+                <p className="text-powder/50 mb-8 max-w-xs mx-auto text-sm">
                   Add the first destination and share the link with your group.
                 </p>
                 <button
                   onClick={() => setShowAddPlace(true)}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-medium transition"
+                  className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-xl font-medium transition"
                 >
                   Add first place
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {trip.destinations.map((dest, i) => (
-                  <div
-                    key={dest.id}
-                    onClick={() => setTab('activities')}
-                    className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl p-5 text-left transition cursor-pointer"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <span className="text-4xl">{dest.emoji}</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => startEditPlace(dest, e)}
-                          className="text-slate-600 hover:text-slate-300 transition p-1 rounded-lg hover:bg-slate-600"
-                          title="Edit place"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
-                        <span className="text-slate-600 text-xs font-mono">#{i + 1}</span>
+                <AnimatePresence>
+                  {trip.destinations.map((dest, i) => (
+                    <motion.div
+                      key={dest.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      onClick={() => setTab('activities')}
+                      className="bg-dark-card hover:bg-dark-card/80 border border-dark-border hover:border-primary/30 rounded-2xl p-5 text-left transition cursor-pointer group"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <span className="text-3xl">{dest.emoji}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => startEditPlace(dest, e)}
+                            className="text-powder/20 hover:text-powder/80 transition p-1 rounded-lg hover:bg-dark-border"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-powder/20 text-xs font-mono">#{i + 1}</span>
+                        </div>
                       </div>
-                    </div>
-                    <h3 className="text-white font-semibold text-lg leading-tight">{dest.name}</h3>
-                    {dest.country && <p className="text-slate-400 text-sm mt-0.5">{dest.country}</p>}
-                    {dest.notes && (
-                      <p className="text-slate-500 text-xs mt-2 line-clamp-2">{dest.notes}</p>
-                    )}
-                    <div className="mt-3 flex items-center gap-1 text-slate-500 text-sm">
-                      <span>✨</span>
-                      <span>
-                        {dest.activities.length}{' '}
-                        {dest.activities.length === 1 ? 'activity' : 'activities'} suggested
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                      <h3 className="text-white font-semibold text-lg leading-tight group-hover:text-primary transition">
+                        {dest.name}
+                      </h3>
+                      {dest.country && <p className="text-powder/50 text-sm mt-0.5">{dest.country}</p>}
+                      {dest.notes && (
+                        <p className="text-powder/30 text-xs mt-2 line-clamp-2">{dest.notes}</p>
+                      )}
+                      <div className="mt-3 flex items-center gap-1.5 text-powder/40 text-sm">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>
+                          {dest.activities.length}{' '}
+                          {dest.activities.length === 1 ? 'activity' : 'activities'}
+                        </span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             )}
           </div>
@@ -485,14 +571,16 @@ export default function TripPage() {
           <div>
             {trip.destinations.length === 0 ? (
               <div className="text-center py-20">
-                <div className="text-6xl mb-5">✨</div>
+                <div className="w-16 h-16 bg-dark-card border border-dark-border rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-8 h-8 text-primary" />
+                </div>
                 <p className="text-white font-semibold text-lg mb-2">Add places first</p>
-                <p className="text-slate-400 mb-8">
-                  Once you have destinations, you can suggest things to do there.
+                <p className="text-powder/50 mb-8 text-sm">
+                  Once you have destinations, you can suggest things to do.
                 </p>
                 <button
                   onClick={() => setTab('places')}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-medium transition"
+                  className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-xl font-medium transition"
                 >
                   Go to Places
                 </button>
@@ -506,23 +594,24 @@ export default function TripPage() {
                         <span className="text-xl">{dest.emoji}</span>
                         <h3 className="text-white font-semibold">{dest.name}</h3>
                         {dest.country && (
-                          <span className="text-slate-500 text-sm">{dest.country}</span>
+                          <span className="text-powder/40 text-sm">{dest.country}</span>
                         )}
                       </div>
                       <button
                         onClick={() => setAddActivityFor(dest.id)}
-                        className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition"
+                        className="flex items-center gap-1 text-primary hover:text-primary/80 text-sm font-medium transition"
                       >
-                        + Suggest
+                        <Plus className="w-3.5 h-3.5" />
+                        Suggest
                       </button>
                     </div>
 
                     {dest.activities.length === 0 ? (
-                      <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 text-center">
-                        <p className="text-slate-500 text-sm mb-2">Nothing suggested yet</p>
+                      <div className="bg-dark-card/50 border border-dark-border rounded-xl p-5 text-center">
+                        <p className="text-powder/30 text-sm mb-2">Nothing suggested yet</p>
                         <button
                           onClick={() => setAddActivityFor(dest.id)}
-                          className="text-indigo-400 text-sm hover:text-indigo-300 transition"
+                          className="text-primary text-sm hover:text-primary/80 transition"
                         >
                           Be the first to suggest something
                         </button>
@@ -532,7 +621,7 @@ export default function TripPage() {
                         {dest.activities.map((activity) => (
                           <div
                             key={activity.id}
-                            className="bg-slate-800 border border-slate-700 rounded-xl p-4"
+                            className="bg-dark-card border border-dark-border rounded-xl p-4"
                           >
                             <div className="flex items-start gap-3">
                               <div className="flex-1 min-w-0">
@@ -540,49 +629,48 @@ export default function TripPage() {
                                   <h4 className="text-white font-medium">{activity.name}</h4>
                                   {activity.category && (
                                     <span
-                                      className={`text-xs px-2 py-0.5 rounded-full ${categoryColor(activity.category)}`}
+                                      className={`text-xs px-2 py-0.5 rounded-full border ${categoryColor(activity.category)}`}
                                     >
                                       {activity.category}
                                     </span>
                                   )}
                                 </div>
                                 {activity.description && (
-                                  <p className="text-slate-400 text-sm leading-relaxed">
+                                  <p className="text-powder/50 text-sm leading-relaxed">
                                     {activity.description}
                                   </p>
                                 )}
                               </div>
 
-                              {/* Edit + Vote buttons */}
+                              {/* Edit + Vote */}
                               <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                                 <button
                                   onClick={() => startEditActivity(activity)}
-                                  className="text-slate-600 hover:text-slate-300 transition p-1 rounded-lg hover:bg-slate-700"
-                                  title="Edit suggestion"
+                                  className="text-powder/20 hover:text-powder/70 transition p-1 rounded-lg hover:bg-dark-border"
                                 >
-                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                  </svg>
+                                  <Pencil className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => vote(activity.id, 'up')}
                                   className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium transition ${
                                     activity.user_vote === 'up'
-                                      ? 'bg-green-700/40 text-green-300 border border-green-600/60'
-                                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-transparent'
+                                      ? 'bg-lime/20 text-lime border border-lime/40'
+                                      : 'bg-dark-surface text-powder/50 hover:bg-dark-border border border-transparent'
                                   }`}
                                 >
-                                  👍 {activity.upvotes}
+                                  <ThumbsUp className="w-3.5 h-3.5" />
+                                  {activity.upvotes}
                                 </button>
                                 <button
                                   onClick={() => vote(activity.id, 'down')}
                                   className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium transition ${
                                     activity.user_vote === 'down'
-                                      ? 'bg-red-700/40 text-red-300 border border-red-600/60'
-                                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-transparent'
+                                      ? 'bg-red-900/30 text-red-300 border border-red-700/50'
+                                      : 'bg-dark-surface text-powder/50 hover:bg-dark-border border border-transparent'
                                   }`}
                                 >
-                                  👎 {activity.downvotes}
+                                  <ThumbsDown className="w-3.5 h-3.5" />
+                                  {activity.downvotes}
                                 </button>
                               </div>
                             </div>
@@ -602,23 +690,25 @@ export default function TripPage() {
           <div>
             <div className="mb-6">
               <h2 className="text-white font-semibold mb-1">Your trip at a glance</h2>
-              <p className="text-slate-400 text-sm">
+              <p className="text-powder/40 text-sm">
                 {totalVotes > 0
-                  ? `Activities ranked by group votes · ${totalVotes} total votes`
-                  : 'Head to "Things to do" and vote to build your plan.'}
+                  ? `Ranked by group votes · ${totalVotes} total votes`
+                  : 'Vote on activities to shape the final plan.'}
               </p>
             </div>
 
             {trip.destinations.length === 0 ? (
               <div className="text-center py-20">
-                <div className="text-6xl mb-5">📋</div>
+                <div className="w-16 h-16 bg-dark-card border border-dark-border rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <ClipboardList className="w-8 h-8 text-primary" />
+                </div>
                 <p className="text-white font-semibold text-lg mb-2">Nothing planned yet</p>
-                <p className="text-slate-400 mb-8">
-                  Add places and activities, then vote to shape the final itinerary.
+                <p className="text-powder/50 mb-8 text-sm">
+                  Add places and activities, then vote to shape the itinerary.
                 </p>
                 <button
                   onClick={() => setTab('places')}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-medium transition"
+                  className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-xl font-medium transition"
                 >
                   Start planning
                 </button>
@@ -632,29 +722,28 @@ export default function TripPage() {
 
                   return (
                     <div key={dest.id} className="relative">
-                      {/* Timeline connector */}
                       {destIndex < trip.destinations.length - 1 && (
-                        <div className="absolute left-6 top-14 bottom-0 w-px bg-slate-700/60" />
+                        <div className="absolute left-6 top-14 bottom-0 w-px bg-dark-border" />
                       )}
 
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 z-10">
+                        <div className="w-12 h-12 bg-dark-card border border-dark-border rounded-xl flex items-center justify-center text-2xl flex-shrink-0 z-10">
                           {dest.emoji}
                         </div>
                         <div>
                           <h3 className="text-white font-semibold leading-tight">{dest.name}</h3>
                           {dest.country && (
-                            <p className="text-slate-400 text-sm">{dest.country}</p>
+                            <p className="text-powder/50 text-sm">{dest.country}</p>
                           )}
                           {dest.notes && (
-                            <p className="text-slate-500 text-xs mt-0.5">{dest.notes}</p>
+                            <p className="text-powder/30 text-xs mt-0.5">{dest.notes}</p>
                           )}
                         </div>
                       </div>
 
                       {sorted.length === 0 ? (
-                        <div className="ml-14 bg-slate-800/40 border border-slate-700/40 rounded-xl p-4">
-                          <p className="text-slate-500 text-sm">No activities suggested yet.</p>
+                        <div className="ml-14 bg-dark-card/50 border border-dark-border/50 rounded-xl p-4">
+                          <p className="text-powder/30 text-sm">No activities suggested yet.</p>
                         </div>
                       ) : (
                         <div className="ml-14 space-y-2">
@@ -665,26 +754,27 @@ export default function TripPage() {
                             return (
                               <div
                                 key={activity.id}
-                                className={`bg-slate-800 border rounded-xl p-4 transition ${
-                                  isTopPick ? 'border-green-700/60' : 'border-slate-700'
+                                className={`bg-dark-card border rounded-xl p-4 transition ${
+                                  isTopPick ? 'border-lime/40' : 'border-dark-border'
                                 }`}
                               >
                                 <div className="flex items-start gap-3">
                                   <div className="flex-1 min-w-0">
                                     {isTopPick && (
-                                      <p className="text-green-400 text-xs font-medium mb-1">
-                                        ⭐ Top pick
+                                      <p className="flex items-center gap-1 text-lime text-xs font-medium mb-1">
+                                        <Star className="w-3 h-3" />
+                                        Top pick
                                       </p>
                                     )}
                                     <h4 className="text-white font-medium">{activity.name}</h4>
                                     {activity.description && (
-                                      <p className="text-slate-400 text-sm mt-1 leading-relaxed">
+                                      <p className="text-powder/50 text-sm mt-1 leading-relaxed">
                                         {activity.description}
                                       </p>
                                     )}
                                     {activity.category && (
                                       <span
-                                        className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full ${categoryColor(activity.category)}`}
+                                        className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full border ${categoryColor(activity.category)}`}
                                       >
                                         {activity.category}
                                       </span>
@@ -693,17 +783,12 @@ export default function TripPage() {
                                   <div className="text-center flex-shrink-0 min-w-[40px]">
                                     <div
                                       className={`text-xl font-bold ${
-                                        score > 0
-                                          ? 'text-green-400'
-                                          : score < 0
-                                          ? 'text-red-400'
-                                          : 'text-slate-500'
+                                        score > 0 ? 'text-lime' : score < 0 ? 'text-red-400' : 'text-powder/30'
                                       }`}
                                     >
-                                      {score > 0 ? '+' : ''}
-                                      {score}
+                                      {score > 0 ? '+' : ''}{score}
                                     </div>
-                                    <div className="text-slate-600 text-xs">votes</div>
+                                    <div className="text-powder/30 text-xs">votes</div>
                                   </div>
                                 </div>
                               </div>
@@ -721,329 +806,368 @@ export default function TripPage() {
       </main>
 
       {/* ── Add Place Modal ── */}
-      {showAddPlace && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-white font-semibold text-lg mb-5">Add a place</h3>
+      <AnimatePresence>
+        {showAddPlace && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              className="bg-dark-card border border-dark-border rounded-2xl w-full max-w-md p-6 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-white font-semibold text-lg">Add a place</h3>
+                <button onClick={() => setShowAddPlace(false)} className="text-powder/40 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-            <div className="mb-4">
-              <label className="text-slate-400 text-sm block mb-2">Pick an icon</label>
-              <div className="flex gap-2 flex-wrap">
-                {['🗺️', '🏛️', '🌊', '🏖️', '⛰️', '🌆', '🌿', '🏜️', '🌅', '🏔️', '🗼', '🏝️'].map(
-                  (e) => (
+              <div className="mb-4">
+                <label className="text-powder/60 text-sm block mb-2">Pick an icon</label>
+                <div className="flex gap-2 flex-wrap">
+                  {DEST_EMOJIS.map((e) => (
                     <button
                       key={e}
                       onClick={() => setNewPlace((p) => ({ ...p, emoji: e }))}
                       className={`w-10 h-10 rounded-lg text-xl transition ${
-                        newPlace.emoji === e ? 'bg-indigo-600 ring-2 ring-indigo-400' : 'bg-slate-700 hover:bg-slate-600'
+                        newPlace.emoji === e
+                          ? 'bg-primary/30 ring-2 ring-primary'
+                          : 'bg-dark-surface hover:bg-dark-border'
                       }`}
                     >
                       {e}
                     </button>
-                  )
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-3 mb-5">
-              <input
-                type="text"
-                placeholder="Place name (e.g. Barcelona)"
-                value={newPlace.name}
-                onChange={(e) => setNewPlace((p) => ({ ...p, name: e.target.value }))}
-                onKeyDown={(e) => e.key === 'Enter' && addPlace()}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-                autoFocus
-              />
-              <input
-                type="text"
-                placeholder="Country (optional)"
-                value={newPlace.country}
-                onChange={(e) => setNewPlace((p) => ({ ...p, country: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-              />
-              <input
-                type="text"
-                placeholder="Notes (optional — e.g. 3 nights, first stop)"
-                value={newPlace.notes}
-                onChange={(e) => setNewPlace((p) => ({ ...p, notes: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-              />
-            </div>
+              <div className="space-y-3 mb-5">
+                <input
+                  type="text"
+                  placeholder="Place name (e.g. Barcelona)"
+                  value={newPlace.name}
+                  onChange={(e) => setNewPlace((p) => ({ ...p, name: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && addPlace()}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition"
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  placeholder="Country (optional)"
+                  value={newPlace.country}
+                  onChange={(e) => setNewPlace((p) => ({ ...p, country: e.target.value }))}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition"
+                />
+                <input
+                  type="text"
+                  placeholder="Notes (optional — e.g. 3 nights)"
+                  value={newPlace.notes}
+                  onChange={(e) => setNewPlace((p) => ({ ...p, notes: e.target.value }))}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition"
+                />
+              </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowAddPlace(false)
-                  setNewPlace({ name: '', country: '', emoji: '🗺️', notes: '' })
-                }}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addPlace}
-                disabled={!newPlace.name.trim() || addingPlace}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl font-medium transition"
-              >
-                {addingPlace ? 'Adding…' : 'Add place'}
-              </button>
-            </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowAddPlace(false); setNewPlace({ name: '', country: '', emoji: '🗺️', notes: '' }) }}
+                  className="flex-1 bg-dark-surface hover:bg-dark-border text-white py-3 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addPlace}
+                  disabled={!newPlace.name.trim() || addingPlace}
+                  className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
+                >
+                  {addingPlace ? 'Adding…' : 'Add place'}
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* ── Add Activity Modal ── */}
-      {addActivityFor && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-white font-semibold text-lg mb-1">Suggest something to do</h3>
-            <p className="text-slate-400 text-sm mb-5">
-              in{' '}
-              <span className="text-indigo-400 font-medium">
-                {trip.destinations.find((d) => d.id === addActivityFor)?.name}
-              </span>
-            </p>
-
-            <div className="space-y-3 mb-5">
-              <input
-                type="text"
-                placeholder="What's the activity? (e.g. Sunset cruise)"
-                value={newActivity.name}
-                onChange={(e) => setNewActivity((p) => ({ ...p, name: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-                autoFocus
-              />
-              <textarea
-                placeholder="Details (optional) — tips, duration, booking info…"
-                value={newActivity.description}
-                onChange={(e) => setNewActivity((p) => ({ ...p, description: e.target.value }))}
-                rows={3}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition resize-none"
-              />
-              <select
-                value={newActivity.category}
-                onChange={(e) => setNewActivity((p) => ({ ...p, category: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition"
-              >
-                {[
-                  'Sightseeing',
-                  'Food & Drinks',
-                  'Adventure',
-                  'Culture',
-                  'Relaxation',
-                  'Shopping',
-                  'Nightlife',
-                  'Nature',
-                ].map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setAddActivityFor(null)
-                  setNewActivity({ name: '', description: '', category: 'Sightseeing' })
-                }}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addActivity}
-                disabled={!newActivity.name.trim() || addingActivity}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl font-medium transition"
-              >
-                {addingActivity ? 'Adding…' : 'Add suggestion'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* ── Edit Place Modal ── */}
-      {editingPlace && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-white font-semibold text-lg mb-5">Edit place</h3>
-
-            <div className="mb-4">
-              <label className="text-slate-400 text-sm block mb-2">Pick an icon</label>
-              <div className="flex gap-2 flex-wrap">
-                {['🗺️', '🏛️', '🌊', '🏖️', '⛰️', '🌆', '🌿', '🏜️', '🌅', '🏔️', '🗼', '🏝️'].map((e) => (
-                  <button
-                    key={e}
-                    onClick={() => setEditPlaceData((p) => ({ ...p, emoji: e }))}
-                    className={`w-10 h-10 rounded-lg text-xl transition ${
-                      editPlaceData.emoji === e ? 'bg-indigo-600 ring-2 ring-indigo-400' : 'bg-slate-700 hover:bg-slate-600'
-                    }`}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3 mb-5">
-              <input
-                type="text"
-                placeholder="Place name"
-                value={editPlaceData.name}
-                onChange={(e) => setEditPlaceData((p) => ({ ...p, name: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-                autoFocus
-              />
-              <input
-                type="text"
-                placeholder="Country (optional)"
-                value={editPlaceData.country}
-                onChange={(e) => setEditPlaceData((p) => ({ ...p, country: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-              />
-              <input
-                type="text"
-                placeholder="Notes (optional)"
-                value={editPlaceData.notes}
-                onChange={(e) => setEditPlaceData((p) => ({ ...p, notes: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-              />
-            </div>
-
-            <div className="flex gap-3 mb-3">
-              <button
-                onClick={() => setEditingPlace(null)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={savePlace}
-                disabled={!editPlaceData.name.trim() || savingPlace}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl font-medium transition"
-              >
-                {savingPlace ? 'Saving…' : 'Save changes'}
-              </button>
-            </div>
-
-            <button
-              onClick={deletePlace}
-              disabled={deletingPlace}
-              className="w-full bg-red-900/40 hover:bg-red-900/70 border border-red-800/50 text-red-400 hover:text-red-300 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-50"
+      <AnimatePresence>
+        {addActivityFor && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              className="bg-dark-card border border-dark-border rounded-2xl w-full max-w-md p-6 shadow-2xl"
             >
-              {deletingPlace ? 'Deleting…' : 'Delete this place'}
-            </button>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-white font-semibold text-lg">Suggest something to do</h3>
+                <button onClick={() => setAddActivityFor(null)} className="text-powder/40 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-powder/40 text-sm mb-5">
+                in{' '}
+                <span className="text-primary font-medium">
+                  {trip.destinations.find((d) => d.id === addActivityFor)?.name}
+                </span>
+              </p>
+
+              <div className="space-y-3 mb-5">
+                <input
+                  type="text"
+                  placeholder="What's the activity? (e.g. Sunset cruise)"
+                  value={newActivity.name}
+                  onChange={(e) => setNewActivity((p) => ({ ...p, name: e.target.value }))}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition"
+                  autoFocus
+                />
+                <textarea
+                  placeholder="Details (optional) — tips, duration, booking info…"
+                  value={newActivity.description}
+                  onChange={(e) => setNewActivity((p) => ({ ...p, description: e.target.value }))}
+                  rows={3}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition resize-none"
+                />
+                <select
+                  value={newActivity.category}
+                  onChange={(e) => setNewActivity((p) => ({ ...p, category: e.target.value }))}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setAddActivityFor(null); setNewActivity({ name: '', description: '', category: 'Sightseeing' }) }}
+                  className="flex-1 bg-dark-surface hover:bg-dark-border text-white py-3 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addActivity}
+                  disabled={!newActivity.name.trim() || addingActivity}
+                  className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
+                >
+                  {addingActivity ? 'Adding…' : 'Add suggestion'}
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
-      {/* ── Leave Confirmation Modal ── */}
-      {showLeaveModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-            <div className="text-3xl mb-3">⚠️</div>
-            <h3 className="text-white font-semibold text-lg mb-2">Save your link before you go!</h3>
-            <p className="text-slate-400 text-sm mb-5 leading-relaxed">
-              This trip only exists at this URL. If you leave without saving the link, you won&apos;t be able to find it again.
-            </p>
+      {/* ── Edit Place Modal ── */}
+      <AnimatePresence>
+        {editingPlace && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              className="bg-dark-card border border-dark-border rounded-2xl w-full max-w-md p-6 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-white font-semibold text-lg">Edit place</h3>
+                <button onClick={() => setEditingPlace(null)} className="text-powder/40 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-            <div className="bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2.5 flex items-center gap-2 mb-5">
-              <span className="text-slate-400 text-xs truncate flex-1 font-mono select-all">
-                {typeof window !== 'undefined' ? window.location.href : ''}
-              </span>
+              <div className="mb-4">
+                <label className="text-powder/60 text-sm block mb-2">Pick an icon</label>
+                <div className="flex gap-2 flex-wrap">
+                  {DEST_EMOJIS.map((e) => (
+                    <button
+                      key={e}
+                      onClick={() => setEditPlaceData((p) => ({ ...p, emoji: e }))}
+                      className={`w-10 h-10 rounded-lg text-xl transition ${
+                        editPlaceData.emoji === e
+                          ? 'bg-primary/30 ring-2 ring-primary'
+                          : 'bg-dark-surface hover:bg-dark-border'
+                      }`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-5">
+                <input
+                  type="text"
+                  placeholder="Place name"
+                  value={editPlaceData.name}
+                  onChange={(e) => setEditPlaceData((p) => ({ ...p, name: e.target.value }))}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition"
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  placeholder="Country (optional)"
+                  value={editPlaceData.country}
+                  onChange={(e) => setEditPlaceData((p) => ({ ...p, country: e.target.value }))}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition"
+                />
+                <input
+                  type="text"
+                  placeholder="Notes (optional)"
+                  value={editPlaceData.notes}
+                  onChange={(e) => setEditPlaceData((p) => ({ ...p, notes: e.target.value }))}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition"
+                />
+              </div>
+
+              <div className="flex gap-3 mb-3">
+                <button
+                  onClick={() => setEditingPlace(null)}
+                  className="flex-1 bg-dark-surface hover:bg-dark-border text-white py-3 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={savePlace}
+                  disabled={!editPlaceData.name.trim() || savingPlace}
+                  className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
+                >
+                  {savingPlace ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+
               <button
-                onClick={copyLinkFromModal}
-                className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                onClick={deletePlace}
+                disabled={deletingPlace}
+                className="w-full bg-red-900/30 hover:bg-red-900/50 border border-red-800/40 text-red-400 hover:text-red-300 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-50"
               >
-                {linkCopied ? '✓ Copied!' : 'Copy link'}
+                {deletingPlace ? 'Deleting…' : 'Delete this place'}
               </button>
-            </div>
-
-            <p className="text-slate-400 text-sm mb-4">Are you sure you want to leave?</p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowLeaveModal(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-medium transition"
-              >
-                No, stay
-              </button>
-              <a
-                href="/"
-                className="flex-1 bg-red-900/50 hover:bg-red-900/80 border border-red-800/50 text-red-300 hover:text-red-200 py-3 rounded-xl font-medium transition text-center"
-              >
-                Yes, leave
-              </a>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* ── Edit Activity Modal ── */}
-      {editingActivity && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-white font-semibold text-lg mb-5">Edit suggestion</h3>
-
-            <div className="space-y-3 mb-5">
-              <input
-                type="text"
-                placeholder="Activity name"
-                value={editActivityData.name}
-                onChange={(e) => setEditActivityData((p) => ({ ...p, name: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-                autoFocus
-              />
-              <textarea
-                placeholder="Details (optional)"
-                value={editActivityData.description}
-                onChange={(e) => setEditActivityData((p) => ({ ...p, description: e.target.value }))}
-                rows={3}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition resize-none"
-              />
-              <select
-                value={editActivityData.category}
-                onChange={(e) => setEditActivityData((p) => ({ ...p, category: e.target.value }))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition"
-              >
-                {['Sightseeing', 'Food & Drinks', 'Adventure', 'Culture', 'Relaxation', 'Shopping', 'Nightlife', 'Nature'].map(
-                  (c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-
-            <div className="flex gap-3 mb-3">
-              <button
-                onClick={() => setEditingActivity(null)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveActivity}
-                disabled={!editActivityData.name.trim() || savingActivity}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl font-medium transition"
-              >
-                {savingActivity ? 'Saving…' : 'Save changes'}
-              </button>
-            </div>
-
-            <button
-              onClick={deleteActivity}
-              disabled={deletingActivity}
-              className="w-full bg-red-900/40 hover:bg-red-900/70 border border-red-800/50 text-red-400 hover:text-red-300 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-50"
+      <AnimatePresence>
+        {editingActivity && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              className="bg-dark-card border border-dark-border rounded-2xl w-full max-w-md p-6 shadow-2xl"
             >
-              {deletingActivity ? 'Deleting…' : 'Delete this suggestion'}
-            </button>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-white font-semibold text-lg">Edit suggestion</h3>
+                <button onClick={() => setEditingActivity(null)} className="text-powder/40 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 mb-5">
+                <input
+                  type="text"
+                  placeholder="Activity name"
+                  value={editActivityData.name}
+                  onChange={(e) => setEditActivityData((p) => ({ ...p, name: e.target.value }))}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition"
+                  autoFocus
+                />
+                <textarea
+                  placeholder="Details (optional)"
+                  value={editActivityData.description}
+                  onChange={(e) => setEditActivityData((p) => ({ ...p, description: e.target.value }))}
+                  rows={3}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white placeholder-powder/30 focus:outline-none focus:border-primary transition resize-none"
+                />
+                <select
+                  value={editActivityData.category}
+                  onChange={(e) => setEditActivityData((p) => ({ ...p, category: e.target.value }))}
+                  className="w-full bg-dark-surface border border-dark-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 mb-3">
+                <button
+                  onClick={() => setEditingActivity(null)}
+                  className="flex-1 bg-dark-surface hover:bg-dark-border text-white py-3 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveActivity}
+                  disabled={!editActivityData.name.trim() || savingActivity}
+                  className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
+                >
+                  {savingActivity ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+
+              <button
+                onClick={deleteActivity}
+                disabled={deletingActivity}
+                className="w-full bg-red-900/30 hover:bg-red-900/50 border border-red-800/40 text-red-400 hover:text-red-300 py-2.5 rounded-xl text-sm font-medium transition disabled:opacity-50"
+              >
+                {deletingActivity ? 'Deleting…' : 'Delete this suggestion'}
+              </button>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+      {/* ── Leave Confirmation Modal ── */}
+      <AnimatePresence>
+        {showLeaveModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="bg-dark-card border border-dark-border rounded-2xl w-full max-w-sm p-6 shadow-2xl"
+            >
+              <h3 className="text-white font-semibold text-lg mb-2">Save your link first!</h3>
+              <p className="text-powder/50 text-sm mb-5 leading-relaxed">
+                This trip only exists at this URL. Save it before leaving so you can find it again.
+              </p>
+
+              <div className="bg-dark-surface border border-dark-border rounded-xl px-3 py-2.5 flex items-center gap-2 mb-5">
+                <span className="text-powder/40 text-xs truncate flex-1 font-mono select-all">
+                  {typeof window !== 'undefined' ? window.location.href : ''}
+                </span>
+                <button
+                  onClick={copyLinkFromModal}
+                  className="flex-shrink-0 bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                >
+                  {linkCopied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowLeaveModal(false)}
+                  className="flex-1 bg-dark-surface hover:bg-dark-border text-white py-3 rounded-xl font-medium transition"
+                >
+                  Stay
+                </button>
+                <a
+                  href="/"
+                  className="flex-1 bg-red-900/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 py-3 rounded-xl font-medium transition text-center"
+                >
+                  Leave
+                </a>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

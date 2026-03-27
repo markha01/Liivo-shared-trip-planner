@@ -23,12 +23,26 @@ export async function initDb(): Promise<void> {
   const client = await getPool().connect()
   try {
     await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        display_name VARCHAR(100) NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `)
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS trips (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(255) NOT NULL,
         description TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       )
+    `)
+
+    await client.query(`
+      ALTER TABLE trips ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL
     `)
 
     await client.query(`
