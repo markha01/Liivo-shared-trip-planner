@@ -76,8 +76,6 @@ export default function TripPage() {
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('places')
   const [copied, setCopied] = useState(false)
-  const [showLeaveModal, setShowLeaveModal] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
 
   // Add place form
@@ -347,12 +345,6 @@ export default function TripPage() {
     setTimeout(() => setCopied(false), 2500)
   }
 
-  function copyLinkFromModal() {
-    navigator.clipboard.writeText(window.location.href)
-    setLinkCopied(true)
-    setTimeout(() => setLinkCopied(false), 2500)
-  }
-
   // ── Loading skeleton ───────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -427,12 +419,12 @@ export default function TripPage() {
       <header className="bg-dark-surface/95 backdrop-blur border-b border-dark-border sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <button
-              onClick={() => setShowLeaveModal(true)}
+            <a
+              href="/dashboard"
               className="text-powder/40 hover:text-white transition flex-shrink-0 p-1"
             >
               <ArrowLeft className="w-5 h-5" />
-            </button>
+            </a>
             <div className="min-w-0">
               <h1 className="text-white font-bold truncate leading-tight">{trip.name}</h1>
               {trip.description && (
@@ -1122,52 +1114,6 @@ export default function TripPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Leave Confirmation Modal ── */}
-      <AnimatePresence>
-        {showLeaveModal && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
-              className="bg-dark-card border border-dark-border rounded-2xl w-full max-w-sm p-6 shadow-2xl"
-            >
-              <h3 className="text-white font-semibold text-lg mb-2">Save your link first!</h3>
-              <p className="text-powder/50 text-sm mb-5 leading-relaxed">
-                This trip only exists at this URL. Save it before leaving so you can find it again.
-              </p>
-
-              <div className="bg-dark-surface border border-dark-border rounded-xl px-3 py-2.5 flex items-center gap-2 mb-5">
-                <span className="text-powder/40 text-xs truncate flex-1 font-mono select-all">
-                  {typeof window !== 'undefined' ? window.location.href : ''}
-                </span>
-                <button
-                  onClick={copyLinkFromModal}
-                  className="flex-shrink-0 bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition"
-                >
-                  {linkCopied ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowLeaveModal(false)}
-                  className="flex-1 bg-dark-surface hover:bg-dark-border text-white py-3 rounded-xl font-medium transition"
-                >
-                  Stay
-                </button>
-                <a
-                  href="/"
-                  className="flex-1 bg-red-900/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 py-3 rounded-xl font-medium transition text-center"
-                >
-                  Leave
-                </a>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

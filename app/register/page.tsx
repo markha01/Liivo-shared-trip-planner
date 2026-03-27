@@ -58,7 +58,7 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <span className="text-2xl font-bold text-white">Liivo</span>
+            <span className="text-2xl font-bold text-white">Trippin&apos;</span>
           </Link>
           <h1 className="text-2xl font-bold text-white mb-1">Create your account</h1>
           <p className="text-powder/70 text-sm">Free forever. No credit card needed.</p>

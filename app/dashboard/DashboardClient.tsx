@@ -72,7 +72,7 @@ export default function DashboardClient({ user, initialTrips }: Props) {
       <header className="bg-dark-surface border-b border-dark-border sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-white">
-            Liivo
+            Trippin&apos;
           </Link>
 
           <div className="relative">

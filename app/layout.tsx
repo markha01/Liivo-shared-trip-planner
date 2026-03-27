@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Liivo — Plan trips together',
+  title: "Trippin' — Plan trips together",
   description: 'Share a link, add places, vote on activities, and build your itinerary together.',
 }
 
