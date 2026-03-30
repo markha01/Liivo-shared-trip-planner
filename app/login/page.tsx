@@ -51,7 +51,14 @@ function LoginForm() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <span className="text-2xl font-bold text-white">Trippin&apos;</span>
+            <span
+                className="text-2xl font-bold"
+                style={{
+                  background: 'linear-gradient(135deg, #A878F8 0%, #2192D9 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >Trippin&apos;</span>
           </Link>
           <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
           <p className="text-powder/70 text-sm">Sign in to your account</p>
@@ -66,7 +73,7 @@ function LoginForm() {
             <div>
               <label className="text-sm text-powder/80 block mb-1.5">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-powder/40" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-200" style={{ color: email ? '#1b5ed1' : 'rgba(178,219,247,0.4)' }} />
                 <input
                   type="email"
                   value={email}
@@ -81,7 +88,7 @@ function LoginForm() {
             <div>
               <label className="text-sm text-powder/80 block mb-1.5">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-powder/40" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-200" style={{ color: password ? '#1b5ed1' : 'rgba(178,219,247,0.4)' }} />
                 <input
                   type="password"
                   value={password}
@@ -110,7 +117,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white font-semibold py-3 rounded-xl transition text-sm"
+              className="w-full bg-accent hover:bg-accent/90 disabled:bg-dark-border disabled:text-powder/30 text-white font-semibold py-3 rounded-xl transition text-sm"
             >
               {loading ? 'Signing in…' : 'Sign in'}
             </button>

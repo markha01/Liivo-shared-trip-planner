@@ -69,7 +69,7 @@ export default function LandingClient() {
             </Link>
             <Link
               href="/register"
-              className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-2 rounded-xl transition"
+              className="bg-accent hover:bg-accent/90 text-white text-sm font-semibold px-4 py-2 rounded-xl transition"
             >
               Get started
             </Link>
@@ -109,7 +109,7 @@ export default function LandingClient() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/register"
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white font-semibold px-8 py-3.5 rounded-xl transition text-base"
+              className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-white font-semibold px-8 py-3.5 rounded-xl transition text-base"
             >
               Get started free
             </Link>

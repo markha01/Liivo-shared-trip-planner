@@ -145,7 +145,7 @@ export default function DashboardClient({ user, initialTrips }: Props) {
           </h2>
           <button
             onClick={() => setShowNewTrip(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl text-sm font-semibold transition"
+            className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white px-4 py-2 rounded-xl text-sm font-semibold transition"
           >
             <Plus className="w-4 h-4" />
             New trip
@@ -164,7 +164,7 @@ export default function DashboardClient({ user, initialTrips }: Props) {
             </p>
             <button
               onClick={() => setShowNewTrip(true)}
-              className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-xl font-semibold transition"
+              className="bg-accent hover:bg-accent/90 text-white px-6 py-3 rounded-xl font-semibold transition"
             >
               Create your first trip
             </button>
@@ -248,7 +248,7 @@ export default function DashboardClient({ user, initialTrips }: Props) {
                 <button
                   onClick={createTrip}
                   disabled={!tripName.trim() || creating}
-                  className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-semibold transition text-sm"
+                  className="flex-1 bg-accent hover:bg-accent/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-semibold transition text-sm"
                 >
                   {creating ? 'Creating…' : 'Create trip'}
                 </button>

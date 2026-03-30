@@ -434,7 +434,7 @@ export default function TripPage() {
           </div>
           <button
             onClick={copyLink}
-            className="flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0"
+            className="flex items-center gap-1.5 bg-accent hover:bg-accent/90 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0"
           >
             {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
             <span className="hidden sm:inline">{copied ? 'Copied!' : 'Share'}</span>
@@ -489,7 +489,7 @@ export default function TripPage() {
               </p>
               <button
                 onClick={() => setShowAddPlace(true)}
-                className="flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+                className="flex items-center gap-1.5 bg-accent hover:bg-accent/90 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
               >
                 <Plus className="w-4 h-4" />
                 Add a place
@@ -507,7 +507,7 @@ export default function TripPage() {
                 </p>
                 <button
                   onClick={() => setShowAddPlace(true)}
-                  className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-xl font-medium transition"
+                  className="bg-accent hover:bg-accent/90 text-white px-6 py-3 rounded-xl font-medium transition"
                 >
                   Add first place
                 </button>
@@ -564,7 +564,7 @@ export default function TripPage() {
             {trip.destinations.length === 0 ? (
               <div className="text-center py-20">
                 <div className="w-16 h-16 bg-dark-card border border-dark-border rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="w-8 h-8 text-primary" />
+                  <Sparkles className="w-8 h-8 text-accent" />
                 </div>
                 <p className="text-white font-semibold text-lg mb-2">Add places first</p>
                 <p className="text-powder/50 mb-8 text-sm">
@@ -572,7 +572,7 @@ export default function TripPage() {
                 </p>
                 <button
                   onClick={() => setTab('places')}
-                  className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-xl font-medium transition"
+                  className="bg-accent hover:bg-accent/90 text-white px-6 py-3 rounded-xl font-medium transition"
                 >
                   Go to Places
                 </button>
@@ -692,7 +692,7 @@ export default function TripPage() {
             {trip.destinations.length === 0 ? (
               <div className="text-center py-20">
                 <div className="w-16 h-16 bg-dark-card border border-dark-border rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <ClipboardList className="w-8 h-8 text-primary" />
+                  <ClipboardList className="w-8 h-8 text-lime" />
                 </div>
                 <p className="text-white font-semibold text-lg mb-2">Nothing planned yet</p>
                 <p className="text-powder/50 mb-8 text-sm">
@@ -700,7 +700,7 @@ export default function TripPage() {
                 </p>
                 <button
                   onClick={() => setTab('places')}
-                  className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-xl font-medium transition"
+                  className="bg-accent hover:bg-accent/90 text-white px-6 py-3 rounded-xl font-medium transition"
                 >
                   Start planning
                 </button>
@@ -870,7 +870,7 @@ export default function TripPage() {
                 <button
                   onClick={addPlace}
                   disabled={!newPlace.name.trim() || addingPlace}
-                  className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
+                  className="flex-1 bg-accent hover:bg-accent/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
                 >
                   {addingPlace ? 'Adding…' : 'Add place'}
                 </button>
@@ -941,7 +941,7 @@ export default function TripPage() {
                 <button
                   onClick={addActivity}
                   disabled={!newActivity.name.trim() || addingActivity}
-                  className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
+                  className="flex-1 bg-accent hover:bg-accent/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
                 >
                   {addingActivity ? 'Adding…' : 'Add suggestion'}
                 </button>
@@ -1023,7 +1023,7 @@ export default function TripPage() {
                 <button
                   onClick={savePlace}
                   disabled={!editPlaceData.name.trim() || savingPlace}
-                  className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
+                  className="flex-1 bg-accent hover:bg-accent/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
                 >
                   {savingPlace ? 'Saving…' : 'Save changes'}
                 </button>
@@ -1096,7 +1096,7 @@ export default function TripPage() {
                 <button
                   onClick={saveActivity}
                   disabled={!editActivityData.name.trim() || savingActivity}
-                  className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
+                  className="flex-1 bg-accent hover:bg-accent/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-3 rounded-xl font-medium transition"
                 >
                   {savingActivity ? 'Saving…' : 'Save changes'}
                 </button>

@@ -231,7 +231,7 @@ export default function SettingsClient({ user }: Props) {
                         <button
                           onClick={saveName}
                           disabled={savingName || !newName.trim()}
-                          className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-2 rounded-xl text-sm font-medium transition"
+                          className="flex-1 bg-accent hover:bg-accent/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-2 rounded-xl text-sm font-medium transition"
                         >
                           {savingName ? 'Saving…' : 'Save'}
                         </button>
@@ -303,7 +303,7 @@ export default function SettingsClient({ user }: Props) {
                         <button
                           onClick={saveEmail}
                           disabled={savingEmail || !newEmail.trim()}
-                          className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-2 rounded-xl text-sm font-medium transition"
+                          className="flex-1 bg-accent hover:bg-accent/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-2 rounded-xl text-sm font-medium transition"
                         >
                           {savingEmail ? 'Saving…' : 'Save'}
                         </button>
@@ -382,7 +382,7 @@ export default function SettingsClient({ user }: Props) {
                         <button
                           onClick={savePassword}
                           disabled={savingPassword}
-                          className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-2 rounded-xl text-sm font-medium transition"
+                          className="flex-1 bg-accent hover:bg-accent/90 disabled:bg-dark-border disabled:text-powder/30 text-white py-2 rounded-xl text-sm font-medium transition"
                         >
                           {savingPassword ? 'Saving…' : 'Save'}
                         </button>
