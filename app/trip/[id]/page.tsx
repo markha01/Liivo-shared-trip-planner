@@ -481,20 +481,13 @@ export default function TripPage() {
         {/* ── PLACES ── */}
         {tab === 'places' && (
           <div>
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-powder/50 text-sm">
-                {trip.destinations.length === 0
-                  ? 'No places added yet'
-                  : `${trip.destinations.length} place${trip.destinations.length !== 1 ? 's' : ''}`}
-              </p>
-              <button
-                onClick={() => setShowAddPlace(true)}
-                className="flex items-center gap-1.5 bg-accent hover:bg-accent/90 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
-              >
-                <Plus className="w-4 h-4" />
-                Add a place
-              </button>
-            </div>
+            {trip.destinations.length > 0 && (
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-powder/50 text-sm">
+                  {`${trip.destinations.length} place${trip.destinations.length !== 1 ? 's' : ''}`}
+                </p>
+              </div>
+            )}
 
             {trip.destinations.length === 0 ? (
               <div className="text-center py-20">
